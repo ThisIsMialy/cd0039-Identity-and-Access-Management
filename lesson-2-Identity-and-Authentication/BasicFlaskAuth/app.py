@@ -117,29 +117,48 @@ def get_token_auth_header():
         abort(401)
         
     return header_parts[1]
+    
+ def check_permissions(permission, payload):
+    if 'permissions' not in payload:
+        raise AuthError({
+                            'code': 'invalid_claims',
+                            'description': 'Permissions not included in JWT.'
+                        }, 400)
         
+    if permission not in payload['permissions']:
+        raise AuthError({
+            'code': 'unauthorized',
+            'description': 'Permission not found.'
+        }, 403)
+        
+    return True
+ 
  def requires_auth(permission='')
-    def requires_auth(f):
+    def requires_auth_decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            token = get_token_auth_header()
+            jwt = get_token_auth_header()
             try:
-                payload = verify_decode_jwt(token)
+                payload = verify_decode_jwt(jwt)
             except:
                 abort(401)
+                
+            check_permissions(permission, payload)
             return f(payload, *args, **kwargs)
 
         return wrapper
+    return requires_auth_decorator
+      
 
-@app.route('/headers')
-@requires_auth
-def headers(payload):
-    print(payload)
-    return 'Access Granted'
+#@app.route('/headers')
+#@requires_auth
+#def headers(payload):
+#    print(payload)
+#    return 'Access Granted'
     
     
 @app.route('/image')
-@requires_auth
+@requires_auth('get:images')
 def images(jwt):
     print(jwt)
     return 'not implemented'
